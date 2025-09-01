@@ -10,22 +10,36 @@ from config import SEED
 
 # Load dataset files
 movies = pd.read_csv('data/movies_metadata.csv', low_memory=False)
-ratings = pd.read_csv('data/ratings_small.csv')  # Use ratings_small.csv for prototyping
+ratings = pd.read_csv('data/ratings_small.csv')
 credits = pd.read_csv('data/credits.csv')
 keywords = pd.read_csv('data/keywords.csv')
 links = pd.read_csv('data/links.csv')
 
 # Parse JSON-like columns
-def parse_json(column):
+def parse_json(column, key='name'):
     try:
-        return [item['name'] for item in json.loads(column.replace("'", '"'))]
+        if isinstance(column, str):
+            return [item[key] for item in json.loads(column.replace("'", '"'))]
+        return []
     except:
         return []
 
-movies['genres'] = movies['genres'].apply(parse_json)
-credits['cast'] = credits['cast'].apply(parse_json)
-credits['crew'] = credits['crew'].apply(parse_json)
-keywords['keywords'] = keywords['keywords'].apply(parse_json)
+movies['genres'] = movies['genres'].apply(lambda x: parse_json(x))
+credits['cast'] = credits['cast'].apply(lambda x: parse_json(x))
+credits['crew'] = credits['crew'].apply(lambda x: parse_json(x))
+keywords['keywords'] = keywords['keywords'].apply(lambda x: parse_json(x))
+
+# Convert id columns to int
+movies = movies[movies['id'].str.isnumeric()]
+movies['id'] = movies['id'].astype(int)
+keywords['id'] = keywords['id'].astype(int)
+credits['id'] = credits['id'].astype(int)
+
+# Debug: Print sample parsed data
+print("Sample genres:", movies['genres'].head().tolist())
+print("Sample keywords:", keywords['keywords'].head().tolist())
+print("Sample cast:", credits['cast'].head().tolist())
+print("Sample crew:", credits['crew'].head().tolist())
 
 # Log initial row counts
 print(f"Initial movies rows: {len(movies)}")
@@ -34,9 +48,11 @@ print(f"Initial credits rows: {len(credits)}")
 print(f"Initial keywords rows: {len(keywords)}")
 print(f"Initial links rows: {len(links)}")
 
-# Align IDs
-movies = movies[movies['id'].str.isnumeric()]
-movies['id'] = movies['id'].astype(int)
+# Merge keywords and credits
+movies = movies.merge(keywords[['id', 'keywords']], left_on='id', right_on='id', how='left')
+movies = movies.merge(credits[['id', 'cast', 'crew']], left_on='id', right_on='id', how='left')
+
+# Align IDs with links
 links['tmdbId'] = links['tmdbId'].fillna(0).astype(int)
 movies = movies.merge(links[['movieId', 'tmdbId']], left_on='id', right_on='tmdbId', how='inner')
 print(f"After ID alignment: {len(movies)}")
