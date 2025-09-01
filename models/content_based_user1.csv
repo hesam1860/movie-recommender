@@ -1,0 +1,6 @@
+movieId,title,Explanation
+1953,The French Connection,"Shared genres: {'Crime', 'Thriller', 'Action'}, Shared cast: set()"
+1172,Cinema Paradiso,"Shared genres: {'Romance', 'Drama'}, Shared cast: set()"
+2105,Tron,"Shared genres: {'Science Fiction', 'Adventure', 'Action'}, Shared cast: set()"
+1339,Dracula,"Shared genres: {'Romance', 'Horror'}, Shared cast: set()"
+26949,Freakin' Beautiful World,"Shared genres: {'Drama'}, Shared cast: set()"
