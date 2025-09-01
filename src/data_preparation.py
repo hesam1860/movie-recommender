@@ -42,7 +42,6 @@ movies = movies.merge(links[['movieId', 'tmdbId']], left_on='id', right_on='tmdb
 print(f"After ID alignment: {len(movies)}")
 
 # Handle missing/outliers
-movies['runtime'] = np.log1p(movies['runtime'].fillna(movies['runtime'].median()))
 movies['budget'] = pd.to_numeric(movies['budget'], errors='coerce')
 movies['budget'] = winsorize(movies['budget'].fillna(0), limits=[0.05, 0.05])
 movies['popularity'] = pd.to_numeric(movies['popularity'], errors='coerce')
