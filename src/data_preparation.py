@@ -1,4 +1,3 @@
-# src/data_preparation.py
 import pandas as pd
 import json
 import numpy as np
@@ -31,6 +30,8 @@ keywords['keywords'] = keywords['keywords'].apply(lambda x: parse_json(x))
 
 # Convert id columns to int
 movies = movies[movies['id'].str.isnumeric()]
+non_numeric_rows = movies[~movies['id'].str.isnumeric()]
+print(f"Rows dropped due to non-numeric ID: {len(non_numeric_rows)}")
 movies['id'] = movies['id'].astype(int)
 keywords['id'] = keywords['id'].astype(int)
 credits['id'] = credits['id'].astype(int)
@@ -50,7 +51,9 @@ print(f"Initial links rows: {len(links)}")
 
 # Merge keywords and credits
 movies = movies.merge(keywords[['id', 'keywords']], left_on='id', right_on='id', how='left')
+print(f"After merging keywords: {len(movies)}")
 movies = movies.merge(credits[['id', 'cast', 'crew']], left_on='id', right_on='id', how='left')
+print(f"After merging credits: {len(movies)}")
 
 # Align IDs with links
 links['tmdbId'] = links['tmdbId'].fillna(0).astype(int)
@@ -77,6 +80,36 @@ plt.figure(figsize=(10, 8))
 sns.heatmap(user_item_matrix.iloc[:100, :100], cmap='Blues')
 plt.title('User-Item Interaction Sparsity (Sample)')
 plt.savefig('report/sparsity_heatmap.png')
+plt.close()
+
+# EDA: Long-tail of movies (by vote count)
+movie_counts = movies['vote_count'].value_counts().sort_index()
+plt.figure(figsize=(10, 6))
+plt.plot(movie_counts.index, movie_counts.values, 'b-')
+plt.title('Long-tail Distribution of Movie Vote Counts')
+plt.xlabel('Vote Count')
+plt.ylabel('Number of Movies')
+plt.yscale('log')
+plt.savefig('report/movie_long_tail.png')
+plt.close()
+
+# EDA: Temporal dynamics (ratings over time)
+ratings['timestamp'] = pd.to_datetime(ratings['timestamp'], unit='s')
+ratings_by_time = ratings.groupby(ratings['timestamp'].dt.year)['rating'].count()
+plt.figure(figsize=(10, 6))
+plt.plot(ratings_by_time.index, ratings_by_time.values, 'r-')
+plt.title('Temporal Dynamics of Ratings')
+plt.xlabel('Year')
+plt.ylabel('Number of Ratings')
+plt.savefig('report/ratings_over_time.png')
+plt.close()
+
+# EDA: Coverage across languages
+plt.figure(figsize=(10, 6))
+sns.countplot(data=movies, x='original_language', order=movies['original_language'].value_counts().index[:10])
+plt.title('Top 10 Languages Coverage')
+plt.xticks(rotation=45)
+plt.savefig('report/language_coverage.png')
 plt.close()
 
 # Save preprocessed data

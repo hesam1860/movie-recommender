@@ -1,0 +1,3 @@
+User ID (optional),Movie Title (optional),Genres (optional),output,timestamp
+1,The Shawshank Redemption,[],,2025-09-01 20:54:42.556453
+1,,[],Error in user-based recommendation: Can only compare identically-labeled Series objects,2025-09-01 21:07:53.572138
