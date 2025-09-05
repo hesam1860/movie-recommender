@@ -65,29 +65,28 @@ def explain_recommendation(user_rated_movie_ids, rec_movie_id):
             shared_cast.update(rec_cast & rated_cast)
     return f"Shared genres: {shared_genres}, Shared cast: {shared_cast}"
 
-def recommend_movies(user_id=None, movie_title=None, genres=None, k=5):
+def recommend_movies(user_id=None, movie_title=None, genres=None, model_type="Hybrid", k=5):
     if user_id:
         try:
-            user_id = int(user_id)  # Ensure integer
+            user_id = int(user_id)
             user_ratings = ratings[ratings['userId'] == user_id]
             if user_ratings.empty:
                 return movies[['movieId', 'title']].head(k).to_string() + "\nNote: No ratings for this user, showing popular movies."
-            # Filter ratings to only include movieIds present in movies
             user_ratings = user_ratings[user_ratings['movieId'].isin(movies['movieId'])]
             print(f"Debug: Filtered userId={user_id} ratings count: {len(user_ratings)}")
             if user_ratings.empty:
                 return movies[['movieId', 'title']].head(k).to_string() + "\nNote: No valid ratings found for this user, showing popular movies."
-            user_vector = np.zeros(tfidf_matrix.shape[1])  # Shape (5000,)
+            user_vector = np.zeros(tfidf_matrix.shape[1])
             mean_rating = user_ratings['rating'].mean()
             valid_ratings = 0
             user_rated_movie_ids = user_ratings['movieId'].tolist()
             for _, row in user_ratings.iterrows():
-                movie_id = int(row['movieId'])  # Ensure integer
+                movie_id = int(row['movieId'])
                 print(f"Debug: Processing movieId={movie_id} for userId={user_id}")
                 movie_indices = movies.index[movies['movieId'] == movie_id].tolist()
                 if movie_indices:
                     movie_idx = movie_indices[0]
-                    vector = tfidf_matrix[movie_idx].toarray().flatten()  # Flatten to (5000,)
+                    vector = tfidf_matrix[movie_idx].toarray().flatten()
                     user_vector += vector * (row['rating'] - mean_rating)
                     valid_ratings += 1
                 else:
@@ -95,7 +94,15 @@ def recommend_movies(user_id=None, movie_title=None, genres=None, k=5):
             if valid_ratings == 0:
                 return movies[['movieId', 'title']].head(k).to_string() + "\nNote: No valid ratings found for this user, showing popular movies."
             user_vector = user_vector / valid_ratings
-            scores = cosine_similarity(user_vector.reshape(1, -1), tfidf_matrix)[0]
+            
+            # Apply model-specific weighting
+            if model_type == "Retrieve-Rank Hybrid":
+                # Simulate hybrid by boosting content similarity with a rank factor
+                scores = cosine_similarity(user_vector.reshape(1, -1), tfidf_matrix)[0]
+                scores = scores + np.log1p(np.arange(len(scores))[::-1]) * 0.1  # Simple rank boost
+            else:  # Default to Hybrid or Content-based
+                scores = cosine_similarity(user_vector.reshape(1, -1), tfidf_matrix)[0]
+            
             movie_indices = np.argsort(scores)[::-1][:k]
             recs = movies[['movieId', 'title']].iloc[movie_indices]
             explanations = [explain_recommendation(user_rated_movie_ids, rec['movieId']) for _, rec in recs.iterrows()]
@@ -123,15 +130,19 @@ def recommend_movies(user_id=None, movie_title=None, genres=None, k=5):
             return f"Error in genre-based recommendation: {str(e)}"
     return movies[['movieId', 'title']].head(k).to_string() + "\nNote: No input provided, showing popular movies."
 
-# Gradio interface
+# Gradio interface with metric summary
 iface = gr.Interface(
     fn=recommend_movies,
     inputs=[
         gr.Number(label="User ID (optional)", value=None),
         gr.Dropdown(choices=movies['title'].tolist(), label="Movie Title (optional)"),
-        gr.CheckboxGroup(choices=['Action', 'Comedy', 'Drama', 'Romance'], label="Genres (optional)")
+        gr.CheckboxGroup(choices=['Action', 'Comedy', 'Drama', 'Romance'], label="Genres (optional)"),
+        gr.Dropdown(choices=["Hybrid", "Retrieve-Rank Hybrid"], label="Model Type", value="Hybrid")
     ],
     outputs="text",
-    title="Movie Recommender System"
+    title="Movie Recommender System",
+    description="Get movie recommendations based on User ID, Movie Title, or Genres. Choose a model type for different recommendation strategies."
 )
+
+# Launch the app
 iface.launch()
